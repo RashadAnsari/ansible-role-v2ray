@@ -1,0 +1,66 @@
+- name: Check v2ray existence
+  stat:
+    path: /usr/local/bin/v2ray
+  register: v2ray_stat
+
+- name: Check v2ray version
+  command: /usr/local/bin/v2ray --version
+  register: v2ray_local_version
+  changed_when: false
+  when: v2ray_stat.stat.exists
+
+- name: Set v2ray_update variable
+  set_fact:
+    v2ray_update: "{{ 'v' + v2ray_local_version.stdout.split()[1] < v2ray_version }}"
+  when: v2ray_stat.stat.exists
+
+- name: Download v2ray installer
+  get_url:
+    url: https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh
+    dest: /tmp/install-release.sh
+    mode: 0755
+    force: true
+  when: not v2ray_stat.stat.exists or v2ray_update
+
+- name: Execute the v2ray installer
+  command: "/tmp/install-release.sh --version {{ v2ray_version }}"
+  when: not v2ray_stat.stat.exists or v2ray_update
+
+- name: Remove the v2ray installer
+  file:
+    path: /tmp/install-release.sh
+    state: absent
+  when: not v2ray_stat.stat.exists or v2ray_update
+
+- name: Enable v2ray service
+  service:
+    name: v2ray
+    state: started
+    enabled: true
+  when: not v2ray_stat.stat.exists or v2ray_update
+
+- name: Create v2ray config
+  template:
+    src: "{{ v2ray_config_template }}"
+    dest: /usr/local/etc/v2ray/config.json
+    mode: 0644
+  when: v2ray_config_template | length > 0
+  notify: restart v2ray service
+
+- name: V2ray config test
+  command: "/usr/local/bin/v2ray -test -config=/usr/local/etc/v2ray/config.json"
+  changed_when: false
+  when: v2ray_config_template | length > 0
+
+- name: Create v2ray non-default configs
+  template:
+    src: "{{ item.value }}"
+    dest: /usr/local/etc/v2ray/{{ item.key }}.json
+    mode: 0644
+  loop: "{{ v2ray_config_templates | dict2items }}"
+  notify: restart v2ray service
+  
+- name: V2ray non-default configs test
+  command: "/usr/local/bin/v2ray -test -config=/usr/local/etc/v2ray/{{ item.key }}.json"
+  changed_when: false
+  loop: "{{ v2ray_config_templates | dict2items }}"

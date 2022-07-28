@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: Rashad Ansari
+  description: Project V is a collection of tools that can help you build your own basic communication network.
+  license: MIT
+
+  issue_tracker_url: https://github.com/RashadAnsari/ansible-role-v2ray/issues
+
+  min_ansible_version: 2.9
+
+  platforms:
+    - name: Ubuntu
+
+  galaxy_tags: []
+
+dependencies: []
